@@ -3168,7 +3168,8 @@ static void hook_quit(const char * str)
 static void cocoa_file_open_hook(const char *path, file_type ftype)
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-    NSString *pathString = [NSString stringWithUTF8String:path];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    NSString *pathString = [fm stringWithFileSystemRepresentation:path length:strlen(path)];
     if (pathString)
     {   
         u32b mac_type = 'TEXT';
@@ -3177,8 +3178,8 @@ static void cocoa_file_open_hook(const char *path, file_type ftype)
         else if (ftype == FTYPE_SAVE)
             mac_type = 'SAVE';
         
-        NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLong:mac_type], NSFileHFSTypeCode, [NSNumber numberWithUnsignedLong:ANGBAND_CREATOR], NSFileHFSCreatorCode, nil];
-        [[NSFileManager defaultManager] setAttributes:attrs ofItemAtPath:pathString error:NULL];
+        NSDictionary *attrs = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedInt:mac_type], NSFileHFSTypeCode, [NSNumber numberWithUnsignedInt:ANGBAND_CREATOR], NSFileHFSCreatorCode, nil];
+        [fm setAttributes:attrs ofItemAtPath:pathString error:NULL];
     }
     [pool drain];
 }
@@ -3207,7 +3208,7 @@ static bool cocoa_get_file(const char *suggested_name, char *path, size_t len)
  * Main program
  * ------------------------------------------------------------------------ */
 
-@interface AngbandAppDelegate : NSObject {
+@interface AngbandAppDelegate : NSObject <NSApplicationDelegate> {
     IBOutlet NSMenu *terminalsMenu;
     NSMenu *_commandMenu;
     NSDictionary *_commandMenuTagMap;
@@ -3617,26 +3618,24 @@ static bool cocoa_get_file(const char *suggested_name, char *path, size_t len)
 /**
  * Delegate method that gets called if we're asked to open a file.
  */
-- (BOOL)application:(NSApplication *)sender openFiles:(NSArray *)filenames
+- (void)application:(NSApplication *)sender openFiles:(NSArray *)filenames
 {
     /* Can't open a file once we've started */
-    if (game_in_progress) return NO;
+    if (game_in_progress) return;
     
     /* We can only open one file. Use the last one. */
     NSString *file = [filenames lastObject];
-    if (! file) return NO;
+    if (! file) return;
     
     /* Put it in savefile */
     if (! [file getFileSystemRepresentation:savefile maxLength:sizeof savefile])
-		return NO;
+		return;
     
     game_in_progress = TRUE;
 
     /* Wake us up in case this arrives while we're sitting at the Welcome
 	 * screen! */
     wakeup_event_loop();
-    
-    return YES;
 }
 
 @end
